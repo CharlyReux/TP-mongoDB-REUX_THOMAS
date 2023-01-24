@@ -1,0 +1,7 @@
+use forum
+db.collection.insert({"nickname":"jean","age":20})
+db.collection.find()
+use forum
+db.collection.find()
+use forum
+db.collection.find()
