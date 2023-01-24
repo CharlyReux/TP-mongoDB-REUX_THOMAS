@@ -63,7 +63,7 @@ db.collection.update({ "nickname" : "jean" }, { $set : { "_id" : "test" }})
 ```
 9. Méthode pour mettre à jour l'id de l'utilisateur
 ```sh
-doc = db.collection.findOne({_id: ObjectId("63cfe4054a461e15c728b3bc")})
+doc = db.collection.findOne({_id: OAbjectId("63cfe4054a461e15c728b3bc")})
 
 doc._id = ObjectId("000123454a461e15c728b3bc")
 
