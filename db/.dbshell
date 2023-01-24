@@ -1,7 +1,43 @@
+db.showcollection()
 use forum
-db.collection.insert({"nickname":"jean","age":20})
-db.collection.find()
+show collection
+show collections
+db.posts.find()
+show collections
+db.posts.find().skip(10)
+db.posts.find().skip(5)
+db.posts.find().limit(5)
+show collections
+db.threads.find().limit(5)
+db.users.find().limit(5)
+db.threads.find().limit(5)
+db.users.find().limit(5)
+use foru
 use forum
-db.collection.find()
+db.users.find().limit(5)
+db.getCollectionInfos()
+db.users.stats()
 use forum
-db.collection.find()
+db.users.distincts("age")
+db.users.distinct("age")
+db.users.find()
+db.users.find({"age":{$or:[20,30,40]}})
+db.users.find({"$or":[{"age":20},{"age":25},{"age":35}]})
+db.users.find({"$gt":[{"age":30}]}).sort({"age":1})
+db.users.find({"age":{"$gt":30}).sort({"age":1})  )
+db.users.find({"age":{"$gt":30}}).sort({"age":1})
+db.users.find({"age":{"$gt":30}}).sort({"age":1}).explain()
+db.users.createIdex({"age"})
+db.users.createIndex({"age"})
+db.users.createIndex("age")
+db.users.createIndex({"age":1})
+db.users.find({"age":{"$gt":30}}).sort({"age":1}).explain()
+db.users.getIndexes()
+db.users.drop("age_1")
+db.users.dropIndex("age_1")
+db.users.find()
+db.users.ensureIndex({ "nickname" : "hashed" })
+db.users.getIndexes()
+db.users.dropIndex("nickname_hashed")
+db.users.ensureIndex({ "age" : "hashed" })
+db.users.find({"age":{"$gt":30}}).sort({"age":1}).explain()
