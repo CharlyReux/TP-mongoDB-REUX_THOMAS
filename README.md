@@ -201,7 +201,7 @@ On utilise l'opérateur de comparaison $gt pour "existe et est suppérieur" avec
 ...
 ```
 
-### Explain
+## Explain
 ### 1. Execution de de la requête explain
 ```sh
 > db.users.find({"age":{"$gt":30}}).sort({"age":1}).explain()
@@ -387,5 +387,266 @@ On recommence la requête:
 ```
 On peut voir que l'index haché n'a pas été utilisé cette fois ci, l'optimizer à selectionné de refaire un SORT sur les données.
 
-### 7. Intérêt d'un index haché
+#### 7. Intérêt d'un index haché
 L'utilisation d'un index haché est moins intéressant dans ce cadre car la requête qu'on utilise à un .sort(). L'optimizer de mongoDB va donc refuser de prendre cet index haché car il ne donne aucun avantage sur la rapidité de la requête par rapport à un sort classique.
+
+
+## Agrégation
+On utilise $group pour grouper par nickname avec les opérateurs $avg pour la moyenne d'age et $sum pour le nombre d'utilisateurs avec le même nickname. On utilise aussi $first pour récupérer le nickname dans un attribut.<br>
+Ensuite, pour supprimer l'id on utilise $project avec _id:0, et pour finir on utilise $sort pour trier, d'abord par l'age:
+```sh
+> db.users.aggregate( [ { $group : { "_id":"$nickname", "age":{$avg:"$age"}, count: { $sum: 1.0 }, "nickname":{$first:"$nickname"}  } }, {$project:{_id:0}},{$sort:{"age":-1}} ] )
+
+{ "age" : 69, "count" : 1, "nickname" : "Yellowjacket" }
+{ "age" : 68, "count" : 1, "nickname" : "Atom" }
+{ "age" : 68, "count" : 1, "nickname" : "He-Man" }
+{ "age" : 68, "count" : 1, "nickname" : "Mister Knife" }
+{ "age" : 68, "count" : 1, "nickname" : "Mimic" }
+{ "age" : 67, "count" : 1, "nickname" : "Batman II" }
+{ "age" : 67, "count" : 1, "nickname" : "Shatterstar" }
+```
+puis par le nombre d'utilisateurs:
+```sh
+> db.users.aggregate( [ { $group : { "_id":"$nickname", "age":{$avg:"$age"}, count: { $sum: 1.0 }, "nickname":{$first:"$nickname"}  } }, {$project:{_id:0}},{$sort:{"count":-1}} ] )
+
+{ "age" : 19, "count" : 2, "nickname" : "Armor" }
+{ "age" : 41.5, "count" : 2, "nickname" : "Cy-Gor" }
+{ "age" : 30, "count" : 2, "nickname" : "Big Man" }
+{ "age" : 52.5, "count" : 2, "nickname" : "Donatello" }
+{ "age" : 38, "count" : 2, "nickname" : "Proto-Goblin" }
+{ "age" : 26.5, "count" : 2, "nickname" : "Crimson Dynamo" }
+{ "age" : 13, "count" : 1, "nickname" : "Man-Bat" }
+{ "age" : 24, "count" : 1, "nickname" : "Spock" }
+{ "age" : 63, "count" : 1, "nickname" : "Space Ghost" }
+```
+
+## Modélisation
+
+### 1. Manière de modéliser des relations
+Il existe plusieurs manière de modéliser des relations avec mongodb, soit avec des sous-documents, soit avec des documents liés.
+
+### 2. Implémentations
+
+#### Embedded document
+- Version 1 
+Ajout d'un attribut user et un attribut thread dans post.<br>
+On ajoute donc un user et un thread dans la classes Post
+```java
+  private final User user;
+```
+Ensuite on modifie ThreadGenerator et PostGenerator pour prendre un utilisateur aléatoire.
+```java
+Thread randomThread = threadGenerator.getRandomThread();
+User randomKnownUser = userGenerator.getRandomKnownUser();
+
+Post newPost = Post.builder()
+      ._id(idString)
+      .title(textGenerator.generateText(1))
+      .user(randomKnownUser)
+      .thread(randomThread)
+      .content(textGenerator.generateText(10))
+      .build();
+
+```
+
+On génère ensuite les données et on trouve bien des user et des thread dans chaque post
+```sh
+> db.posts.find()
+{ "_id" : "0", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "user" : { "_id" : "Elongated Man|71", "nickname" : "Elongated Man", "age" : 14 }, "thread" : { "_id" : "0", "title" : "blah. " } }
+{ "_id" : "1", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "user" : { "_id" : "Elongated Man|71", "nickname" : "Elongated Man", "age" : 14 }, "thread" : { "_id" : "0", "title" : "blah. " } }
+{ "_id" : "2", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "user" : { "_id" : "Elongated Man|71", "nickname" : "Elongated Man", "age" : 14 }, "thread" : { "_id" : "0", "title" : "blah. " } }
+```
+
+On peut trouver tout les posts d'un utilisateur avec la commande
+```sh
+> db.posts.find({"user.nickname":"Thor Girl"})
+{ "_id" : "492", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "user" : { "_id" : "Thor Girl|08", "nickname" : "Thor Girl", "age" : 26 }, "thread" : { "_id" : "149", "title" : "blah. " } }
+{ "_id" : "500", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "user" : { "_id" : "Thor Girl|08", "nickname" : "Thor Girl", "age" : 26 }, "thread" : { "_id" : "127", "title" : "blah. " } }
+```
+et avec le .explain("executionStats") on récupère les statistiques suivantes:
+```json
+        "executionStats" : {
+                "executionSuccess" : true,
+                "nReturned" : 22,
+                "executionTimeMillis" : 1,
+                "totalKeysExamined" : 0,
+                "totalDocsExamined" : 796,
+                "executionStages" : {
+                        "stage" : "COLLSCAN",
+                        "filter" : {
+                                "user.nickname" : {
+                                        "$eq" : "Thor Girl"
+                                }
+                        },
+                        "nReturned" : 22,
+                        "executionTimeMillisEstimate" : 0,
+                        "works" : 798,
+                        "advanced" : 22,
+                        "needTime" : 775,
+                        "needYield" : 0,
+                        "saveState" : 0,
+                        "restoreState" : 0,
+                        "isEOF" : 1,
+                        "direction" : "forward",
+                        "docsExamined" : 796
+                }
+        },
+```
+
+On peut trouver tout les posts d'un thread
+```sh
+> db.posts.find({"thread._id":"23"})
+{ "_id" : "84", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "user" : { "_id" : "Flash III|47", "nickname" : "Flash III", "age" : 34 }, "thread" : { "_id" : "23", "title" : "blah. " } }
+{ "_id" : "115", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "user" : { "_id" : "John Wraith|82", "nickname" : "John Wraith", "age" : 68 }, "thread" : { "_id" : "23", "title" : "blah. " } }
+{ "_id" : "176", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "user" : { "_id" : "Donna Troy|35", "nickname" : "Donna Troy", "age" : 25 }, "thread" : { "_id" : "23", "title" : "blah. " } }
+{ "_id" : "201", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "user" : { "_id" : "Big Barda|75", "nickname" : "Big Barda", "age" : 35 }, "thread" : { "_id" : "23", "title" : "blah. " } }
+```
+Et on a les statistiques suivantes:
+```json
+"executionStats" : {
+                "executionSuccess" : true,
+                "nReturned" : 5,
+                "executionTimeMillis" : 1,
+                "totalKeysExamined" : 0,
+                "totalDocsExamined" : 796,
+                "executionStages" : {
+                        "stage" : "COLLSCAN",
+                        "filter" : {
+                                "thread._id" : {
+                                        "$eq" : "23"
+                                }
+                        },
+                        "nReturned" : 5,
+                        "executionTimeMillisEstimate" : 0,
+                        "works" : 798,
+                        "advanced" : 5,
+                        "needTime" : 792,
+                        "needYield" : 0,
+                        "saveState" : 0,
+                        "restoreState" : 0,
+                        "isEOF" : 1,
+                        "direction" : "forward",
+                        "docsExamined" : 796
+                }
+        }
+```
+- Version 2
+On ajoute un tableau de post dans user et un tableau de post dans thread.
+on ajoute une map dans postGenerator
+```java
+  private final ConcurrentHashMap<String, Post> knownPost = new ConcurrentHashMap<>();
+  ```
+Dans la méthode generatePost on ajoute les post dans la map
+```java
+knownPost.put(idString, newPost);
+```
+On ajoute ensuite une méthode getRandomPost
+```java
+  public Post getRandomKnownPost() {
+
+    Iterator<Post> iterator = knownPost.values().iterator();
+
+    Post retValue = null;
+    if (!knownPost.isEmpty()) {
+      int nextPos = RANDOM.nextInt(knownPost.size());
+
+      for (int i = 0; i <= nextPos; i++) {
+        retValue = iterator.next();
+      }
+    }
+
+    return retValue;
+  }
+```
+On rajoute en attribut dans user et dans thread une liste de post
+```java
+  private final List<Post> posts;
+
+```
+
+On va ensuite rajouter dans ThreadGenerator et dans UserGenerator les lignes de code suivante:
+
+```java
+    List<Post> myPosts = new ArrayList<Post>();
+    for(int i = 0; i< (new Random().nextInt(6));i++){
+      Post randomPost = postGenerator.getRandomKnownPost();
+      myPosts.add(randomPost);
+    }
+
+    ...
+  private final List<Post> posts;
+      Thread newThread = Thread.builder()
+              ._id(idString)
+              .title(textGenerator.generateText(1))
+              .posts(myPosts)
+              .build();
+```
+On trouve maintenant dans thread une liste de post
+```sh
+> db.threads.find()
+{ "_id" : "0", "title" : "blah. ", "posts" : [ { "_id" : "1", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. " } ] }
+{ "_id" : "1", "title" : "blah. ", "posts" : [ { "_id" : "4", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. " } ] }
+{ "_id" : "2", "title" : "blah. ", "posts" : [ { "_id" : "5", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. " } ] }
+{ "_id" : "3", "title" : "blah. ", "posts" : [ { "_id" : "9", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. " }, { "_id" : "10", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. " } ] }
+```
+
+```sh
+> db.users.find()
+{ "_id" : "Blob|69", "nickname" : "Blob", "age" : 20, "posts" : [ { "_id" : "880", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. " }, { "_id" : "885", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. " } ] }
+{ "_id" : "Atlas|54", "nickname" : "Atlas", "age" : 13, "posts" : [ { "_id" : "889", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. " }, { "_id" : "890", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. " } ] }
+{ "_id" : "Blackwing|41", "nickname" : "Blackwing", "age" : 53, "posts" : [ { "_id" : "895", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. " } ] }
+{ "_id" : "Goliath IV|89", "nickname" : "Goliath IV", "age" : 21, "posts" : [ { "_id" : "902", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. " }, { "_id" : "903", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. " } ] }
+{ "_id" : "Tracy Strauss|20", "nickname" : "Tracy Strauss", "age" : 27, "posts" : [ { "_id" : "908", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. " } ] }
+```
+
+Pour trouver tout les posts d'un utilisateur on peut faire
+
+```sh
+db.users.find({"nickname":"Deadpool"},{"posts":1})
+```
+
+```sh
+db.threads.find({"_id":"6"},{"posts":1})
+```
+
+Ensuite avec explain on trouve les données suivantes
+```json
+ "executionStats" : {
+                "executionSuccess" : true,
+                "nReturned" : 1,
+                "executionTimeMillis" : 0,
+                "totalKeysExamined" : 1,
+                "totalDocsExamined" : 1,
+                "executionStages" : {
+                        "stage" : "PROJECTION_SIMPLE",
+                        "nReturned" : 1,
+                        "executionTimeMillisEstimate" : 0,
+                        "works" : 2,
+                        "advanced" : 1,
+                        "needTime" : 0,
+                        "needYield" : 0,
+                        "saveState" : 0,
+                        "restoreState" : 0,
+                        "isEOF" : 1,
+                        "transformBy" : {
+                                "posts" : 1
+                        },
+                        "inputStage" : {
+                                "stage" : "IDHACK",
+                                "nReturned" : 1,
+                                "executionTimeMillisEstimate" : 0,
+                                "works" : 2,
+                                "advanced" : 1,
+                                "needTime" : 0,
+                                "needYield" : 0,
+                                "saveState" : 0,
+                                "restoreState" : 0,
+                                "isEOF" : 1,
+                                "keysExamined" : 1,
+                                "docsExamined" : 1
+                        }
+                }
+        }
+```
+
+On observe que l'étape stage n'est pas la même puisque la requête n'a pas eu besoin de scanner l'entrièreté des utilisateurs. En théorie, cette modélisation est plus optimale pour les requêtes.

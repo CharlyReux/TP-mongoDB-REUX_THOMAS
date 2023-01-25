@@ -2,11 +2,14 @@ package fr.esir.mongo.users;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.PostConstruct;
+
+import org.apache.camel.BeanInject;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.commons.io.IOUtils;
@@ -14,11 +17,17 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
+import fr.esir.mongo.posts.Post;
+import fr.esir.mongo.posts.PostGenerator;
+import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
+
 /**
  *
  * @author lboutros
  */
 @Component
+@RequiredArgsConstructor
 public class UserGenerator implements Processor {
 
   private final static Random RANDOM = new Random(System.currentTimeMillis());
@@ -43,6 +52,8 @@ public class UserGenerator implements Processor {
   // This is a dummy example, you should NEVER do that for a production app
   private final ConcurrentHashMap<String, User> knownUsers = new ConcurrentHashMap<>();
 
+  private final PostGenerator postGenerator;
+
   @Override
   public void process(Exchange exchange) throws Exception {
     exchange.getIn().setBody(generateUser());
@@ -58,22 +69,35 @@ public class UserGenerator implements Processor {
     String nickname = heroNames[RANDOM.nextInt(heroNames.length)];
     String id = nickname + "|" + String.format(userIdMask, RANDOM.nextInt(userMaxId));
 
-    User user = User.builder()
-            .age(Math.max(userMinAge, RANDOM.nextInt(userMaxAge)))
-            ._id(id)
-            .nickname(nickname)
-            .build();
+    List<Post> myPosts = new ArrayList<Post>();
 
-    User oldUser = knownUsers.putIfAbsent(id, user);
-    if (oldUser == null) {
-      return user;
-    } else {
-      return null;
+    for (int i = 0; i < (new Random().nextInt(6)); i++) {
+      Post randomPost = postGenerator.getRandomKnownPost();
+      myPosts.add(randomPost);
     }
+    myPosts.removeIf(el -> el == null);
+    if (!myPosts.isEmpty()) {
+
+      User user = User.builder()
+          .age(Math.max(userMinAge, RANDOM.nextInt(userMaxAge)))
+          ._id(id)
+          .nickname(nickname)
+          .posts(myPosts)
+          .build();
+
+      User oldUser = knownUsers.putIfAbsent(id, user);
+      if (oldUser == null) {
+        return user;
+      } else {
+        return null;
+      }
+    }
+    return null;
   }
 
   public User getRandomKnownUser() {
-    // TODO improve this method (we should use another collection to get random user in a faster way)
+    // TODO improve this method (we should use another collection to get random user
+    // in a faster way)
     Iterator<User> iterator = knownUsers.values().iterator();
 
     User retValue = null;

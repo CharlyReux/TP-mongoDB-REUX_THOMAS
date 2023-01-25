@@ -1,5 +1,8 @@
 package fr.esir.mongo.users;
 
+import java.util.List;
+
+import fr.esir.mongo.posts.Post;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,5 +22,7 @@ public class User {
   private final String nickname;
 
   private final int age;
+
+  private final List<Post> posts;
 
 }

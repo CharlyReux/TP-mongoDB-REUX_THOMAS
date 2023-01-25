@@ -1,16 +1,16 @@
 package fr.esir.mongo.posts;
 
 import fr.esir.mongo.text.TextGenerator;
-import fr.esir.mongo.threads.Thread;
-import fr.esir.mongo.threads.ThreadGenerator;
 import fr.esir.mongo.users.User;
 import fr.esir.mongo.users.UserGenerator;
 import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.springframework.stereotype.Component;
 
+import java.util.Iterator;
+import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -18,17 +18,20 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 @Component
 @AllArgsConstructor
-@Slf4j
 public class PostGenerator implements Processor {
 
   // TODO initialize/read values in mongo
   // This is a dummy example, you should NEVER do that for a production app
   private final AtomicLong id = new AtomicLong(0);
 
+  private final static Random RANDOM = new Random(System.currentTimeMillis());
+
+
   private final TextGenerator textGenerator;
 
-  private final ThreadGenerator threadGenerator;
-  private final UserGenerator userGenerator;
+
+
+  private final ConcurrentHashMap<String, Post> knownPost = new ConcurrentHashMap<>();
 
   @Override
   public void process(Exchange exchange) throws Exception {
@@ -37,10 +40,7 @@ public class PostGenerator implements Processor {
 
   // TODO manage post/thread/user relationship
   private Post generatePost() {
-    Thread randomThread = threadGenerator.getRandomThread();
-    User randomKnownUser = userGenerator.getRandomKnownUser();
 
-    if (randomThread != null && randomKnownUser != null) {
       // we need a thread in order to add a post into
       String idString = Long.toString(id.getAndIncrement());
       Post newPost = Post.builder()
@@ -48,15 +48,25 @@ public class PostGenerator implements Processor {
               .title(textGenerator.generateText(1))
               .content(textGenerator.generateText(10))
               .build();
+              knownPost.put(idString, newPost);
 
       return newPost;
-    } else {
-      if (randomThread == null) {
-        log.warn("Cannot create post, no thread created yet.");
-      } else {
-        log.warn("Cannot create post, no user created yet.");
+
+  }
+  public Post getRandomKnownPost() {
+    // TODO improve this method (we should use another collection to get random user in a faster way)
+    Iterator<Post> iterator = knownPost.values().iterator();
+
+    Post retValue = null;
+    if (!knownPost.isEmpty()) {
+      int nextPos = RANDOM.nextInt(knownPost.size());
+
+      for (int i = 0; i <= nextPos; i++) {
+        retValue = iterator.next();
+        iterator.remove();
       }
-      return null;
     }
+
+    return retValue;
   }
 }
