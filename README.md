@@ -651,7 +651,7 @@ Ensuite avec explain on trouve les données suivantes
 
 On observe que l'étape stage n'est pas la même puisque la requête n'a pas eu besoin de scanner l'entrièreté des utilisateurs. En théorie, cette modélisation est plus optimale pour les requêtes.
 
-Pour la suite de ce TP, nous utiliserons cette version pour effectuer nos requêtes.
+Pour la partie suivante, nous utiliserons cette version pour effectuer nos requêtes.
 
 
 ## Modélisation (2)
@@ -672,6 +672,305 @@ Nous n'avons pas générer automatiquement de tags, mais on peut en rajouter à 
 
 ## Modélisation(3)
 1. Effectuer des statistiques sur l'age moyen
-- La première modélisation auquel nous avons pensé serait de ne plus avoir une liste de posts dans user, mais avoir dans post un user, ce qui permettrait de simplifier la requête à la base de données.
+- La première modélisation auquel nous avons pensé serait de ne plus avoir une liste de posts dans user, mais avoir dans post un user, ce qui permettrait de simplifier la requête à la base de données.En plus de cela on peut directement rajouter dans threads un double moyenne contenant la moyenne de l'age des utilisateurs.
 - La deuxième possibilité serait d'utiliser notre architecture actuelle (avec une liste de post dans user et une liste de post dans thread) et de faire une fonction aggregate complexe.
-2. Nous allons modifier notre architecture
+2. Nous allons utiliser la première méthode et modifier notre architecture.
+Premièrement, on va ajouter un attribut averageAge dans la classe thread:
+```java
+  private final double averageAge;
+```
+Ensuite, il faut supprimer la liste contenant les posts dans les user.
+Lors de la génération d'un thread, on va maintenant calculer la moyenne sur les utilisateur des posts prit aléatoirement, sans oublier de ne pas prendre plusieur fois le même user.
+```java
+    double myAverageAge = 0;
+    Set<User> myUserInThread = new HashSet<User>();
+    for (Post myPost : myPosts) {
+      if (myPost == null)
+        continue;
+      myUserInThread.add(myPost.getUser());
+    }
+
+    for (User user : myUserInThread) {
+      myAverageAge += user.getAge();
+    }
+    myAverageAge /= myUserInThread.size();
+
+```
+Ici myPost contient la liste des post du thread actuel.
+
+Maintenant lorsqu'on requête la base de données on a bien un attribut averageAge qui a été ajouté:
+```sh
+> db.threads.find()
+{ "_id" : "0", "title" : "blah. ", "posts" : [ { "_id" : "1", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "user" : { "_id" : "Han Solo|82", "nickname" : "Han Solo", "age" : 13 } } ], "tags" : [ ], "averageAge" : 13 }
+{ "_id" : "3", "title" : "blah. ", "posts" : [ { "_id" : "9", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "user" : { "_id" : "Han Solo|82", "nickname" : "Han Solo", "age" : 13 } }, { "_id" : "10", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "user" : { "_id" : "Klaw|77", "nickname" : "Klaw", "age" : 66 } } ], "tags" : [ ], "averageAge" : 39.5 }
+{ "_id" : "4", "title" : "blah. ", "posts" : [ { "_id" : "14", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "user" : { "_id" : "Bloodwraith|85", "nickname" : "Bloodwraith", "age" : 63 } } ], "tags" : [ ], "averageAge" : 63 }
+```
+## Modélisation(4)
+
+1. Effectuer des statistiques sur les tags des threads par utilisateurs.
+- Encore une fois on pourrait utiliser l'architecture actuelle, et effectuer une méthode aggregate complexe.
+- Ou on peut changer notre architecture pour répondre au besoins. On peut cette fois-ci remettre dans user une liste de post et dans chaque poste mettre un thread. Ensuite on va rajouter dans user une liste de tags qu'on aura récupéré depuis les posts lors de la génération d'un user.
+2. On va donc implémenter la deuxième modélisation.
+Premièrement, on va rajouter dans User un attribut tagList et un attribut post
+```java
+private final List<String> Usedtags;
+
+private final List<Post> posts;
+```
+
+Ensuite on va générer des tags aléatoire dans les thread:
+```java
+    for (int i = 0; i < 5; i++) {
+      tags.add(textGenerator.generateText(2));
+    }
+```
+Et finalement, dans thread on va ajouter un attribut thread
+```java
+  private final Thread thread;
+```
+Et on va l'initialiser aléatoirement lors de la création d'un post.
+
+Ensuite, lors de la génération des users, on va itérer dans la liste de ses post et accéder au threads correspondant pour trouver la liste des tags correspondant.
+```java
+  List<String> myUserTags = new LinkedList<>();
+      // getting the tags
+      for (Post post : myPosts) {
+        myUserTags.addAll(post.getThread().getTags());
+      }
+```
+Mainenant, en faisant des requêtes, on peut trouver dans chaque user une liste de tag correspondant au tag des threads dans lequel il a posté, et donc effectuer des statistiques sur ceux-ci.<br>
+Voici un exemple d'utilisateur.
+```sh
+{ "_id" : "Yellowjacket II|65", "nickname" : "Yellowjacket II", "age" : 13, "posts" : [ { "_id" : "121", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "thread" : { "_id" : "7", "title" : "blah. ", "tags" : [ "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. " ] } }, { "_id" : "108", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "thread" : { "_id" : "14", "title" : "blah. ", "tags" : [ "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. " ] } }, { "_id" : "109", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "thread" : { "_id" : "9", "title" : "blah. ", "tags" : [ "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. " ] } } ], "usedtags" : [ "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. " ] }
+```
+Ici en l'occurence les tags sont générés "aléatoirement" avec textGenerator, donc tous égaux à "blah blah".
+
+## Réplication et haute disponibilité
+
+1. On utilise les commandes suivante:
+Pour pouvoir continuer de lire dans les bases de données secondaires, on va ajouter l'option `rs.secondaryOK()`.
+```sh
+$ mongo --nodb
+var replicaSet = new ReplSetTest({"nodes" : 3})
+replicaSet.startSet()
+replicaSet.initiate()
+```
+
+2. on se connecte ensuite au docker depuis une autre fenêtre de commande:
+```sh
+docker exec -it mongo bash
+```
+
+On va ensuite se connecter à un réplicaset secondaire:
+```sh
+mongo --host localhost:20002
+```
+
+3. On effectue maintenant la commande status:
+```sh
+> rs.status()
+```
+On obtient comme réponse une liste des membres ainsi qu'un attribut "ok" à 1.
+
+4. On va maintenant changer le string de connection dans le application.properties, mais avant cela, il faut toruver l'ip du conteneur mongo:
+```sh
+> docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' mongo
+172.19.0.2
+```
+On peut ensuite rajouter ce qui suit dans le fichier application.properties du java
+```properties
+mongo.cnx.string=mongodb://172.19.0.2:20000
+```
+
+5. On utilise ces commandes pour interroger la base:
+```sh
+>use forum
+>db.users.find()
+...,
+{ "_id" : "Hawkwoman III|78", "nickname" : "Hawkwoman III", "age" : 13, "posts" : [ { "_id" : "126", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "thread" : { "_id" : "13", "title" : "blah. ", "tags" : [ "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. " ] } }, { "_id" : "127", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "thread" : { "_id" : "34", "title" : "blah. ", "tags" : [ "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. " ] } } ], "usedtags" : [ "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. " ] }
+```
+Les données ont bien été ajoutées.
+
+6. On va stopper une des replica avec la commande kill, d'abord on trouve le pid des instance
+```sh
+>ps -aux
+USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+...
+root         898  1.2  1.2 1766632 95908 pts/0   Sl+  16:25   0:06 /usr/bin/mongod --oplogSize 40 --port 20000 --replSet __unknown_name__ --dbpath /data/db/__u
+root         900  1.3  1.2 1779572 98500 pts/0   Sl+  16:25   0:06 /usr/bin/mongod --oplogSize 40 --port 20001 --replSet __unknown_name__ --dbpath /data/db/__u
+root         902  1.3  1.2 1742708 95736 pts/0   Sl+  16:25   0:06 /usr/bin/mongod --oplogSize 40 --port 20002 --replSet __unknown_name__ --dbpath /data/db/__u
+```
+Puis on kill l'instance correspondante(sur le port 20001):
+
+```sh
+kill 900
+```
+7. Et on regarde le status:
+
+```sh
+replicaset.status()
+```
+dans le noeud avec l'id 2, on observe les lignes suivantes:
+```json
+...,
+ "health" : 0,
+ "state" : 8,
+ "stateStr" : "(not reachable/healthy)",
+ ...
+ ```
+
+8. On va ré-interroger la base de données avec la commande suivante:
+```sh
+> db.users.find()
+{ "_id" : "Ultron|19", "nickname" : "Ultron", "age" : 13, "posts" : [ { "_id" : "8", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "thread" : { "_id" : "0", "title" : "blah. ", "tags" : [ "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. " ] } }, { "_id" : "9", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "thread" : { "_id" : "1", "title" : "blah. ", "tags" : [ "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. " ] } }, { "_id" : "10", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "thread" : { "_id" : "1", "title" : "blah. ", "tags" : [ "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. " ] } } ], "usedtags" : [ "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. " ] }
+```
+
+La base est toujours fonctionnelle.
+
+## Réplication et haute disponibilité(2)
+
+1. On va kill le noeud primaire:
+```sh
+kill 898
+```
+
+2. Voici ce qu'on obtient avec la commande status du réplicaset
+```json
+{
+        "set" : "__unknown_name__",
+        "date" : ISODate("2023-02-01T16:46:05.200Z"),
+        "myState" : 2,
+        "term" : NumberLong(2),
+        "syncSourceHost" : "",
+        "syncSourceId" : -1,
+        "heartbeatIntervalMillis" : NumberLong(2000),
+        "majorityVoteCount" : 2,
+        "writeMajorityCount" : 2,
+        "votingMembersCount" : 3,
+        "writableVotingMembersCount" : 3,
+        "optimes" : {
+                "lastCommittedOpTime" : {
+                        "ts" : Timestamp(1675269837, 14),
+                        "t" : NumberLong(1)
+                },
+                "lastCommittedWallTime" : ISODate("2023-02-01T16:43:57.920Z"),
+                "readConcernMajorityOpTime" : {
+                        "ts" : Timestamp(1675269837, 14),
+                        "t" : NumberLong(1)
+                },
+                "readConcernMajorityWallTime" : ISODate("2023-02-01T16:43:57.920Z"),
+                "appliedOpTime" : {
+                        "ts" : Timestamp(1675269837, 14),
+                        "t" : NumberLong(1)
+                },
+                "durableOpTime" : {
+                        "ts" : Timestamp(1675269837, 14),
+                        "t" : NumberLong(1)
+                },
+                "lastAppliedWallTime" : ISODate("2023-02-01T16:43:57.920Z"),
+                "lastDurableWallTime" : ISODate("2023-02-01T16:43:57.920Z")
+        },
+        "lastStableRecoveryTimestamp" : Timestamp(1675269837, 14),
+        "members" : [
+                {
+                        "_id" : 0,
+                        "name" : "df397d65d352:20000",
+                        "health" : 0,
+                        "state" : 8,
+                        "stateStr" : "(not reachable/healthy)",
+                        "uptime" : 0,
+                        "optime" : {
+                                "ts" : Timestamp(0, 0),
+                                "t" : NumberLong(-1)
+                        },
+                        "optimeDurable" : {
+                                "ts" : Timestamp(0, 0),
+                                "t" : NumberLong(-1)
+                        },
+                        "optimeDate" : ISODate("1970-01-01T00:00:00Z"),
+                        "optimeDurableDate" : ISODate("1970-01-01T00:00:00Z"),
+                        "lastAppliedWallTime" : ISODate("2023-02-01T16:43:57.920Z"),
+                        "lastDurableWallTime" : ISODate("2023-02-01T16:43:57.920Z"),
+                        "lastHeartbeat" : ISODate("2023-02-01T16:46:05.029Z"),
+                        "lastHeartbeatRecv" : ISODate("2023-02-01T16:45:58.130Z"),
+                        "pingMs" : NumberLong(0),
+                        "lastHeartbeatMessage" : "Error connecting to df397d65d352:20000 (172.19.0.2:20000) :: caused by :: Connection refused",
+                        "syncSourceHost" : "",
+                        "syncSourceId" : -1,
+                        "infoMessage" : "",
+                        "configVersion" : 3,
+                        "configTerm" : 1
+                },
+                {
+                        "_id" : 1,
+                        "name" : "df397d65d352:20001",
+                        "health" : 0,
+                        "state" : 8,
+                        "stateStr" : "(not reachable/healthy)",
+                        "uptime" : 0,
+                        "optime" : {
+                                "ts" : Timestamp(0, 0),
+                                "t" : NumberLong(-1)
+                        },
+                        "optimeDurable" : {
+                                "ts" : Timestamp(0, 0),
+                                "t" : NumberLong(-1)
+                        },
+                        "optimeDate" : ISODate("1970-01-01T00:00:00Z"),
+                        "optimeDurableDate" : ISODate("1970-01-01T00:00:00Z"),
+                        "lastAppliedWallTime" : ISODate("2023-02-01T16:29:56.581Z"),
+                        "lastDurableWallTime" : ISODate("2023-02-01T16:29:56.581Z"),
+                        "lastHeartbeat" : ISODate("2023-02-01T16:46:05.028Z"),
+                        "lastHeartbeatRecv" : ISODate("2023-02-01T16:37:36.630Z"),
+                        "pingMs" : NumberLong(0),
+                        "lastHeartbeatMessage" : "Error connecting to df397d65d352:20001 (172.19.0.2:20001) :: caused by :: Connection refused",
+                        "syncSourceHost" : "",
+                        "syncSourceId" : -1,
+                        "infoMessage" : "",
+                        "configVersion" : 3,
+                        "configTerm" : 1
+                },
+                {
+                        "_id" : 2,
+                        "name" : "df397d65d352:20002",
+                        "health" : 1,
+                        "state" : 2,
+                        "stateStr" : "SECONDARY",
+                        "uptime" : 1210,
+                        "optime" : {
+                                "ts" : Timestamp(1675269837, 14),
+                                "t" : NumberLong(1)
+                        },
+                        "optimeDate" : ISODate("2023-02-01T16:43:57Z"),
+                        "lastAppliedWallTime" : ISODate("2023-02-01T16:43:57.920Z"),
+                        "lastDurableWallTime" : ISODate("2023-02-01T16:43:57.920Z"),
+                        "syncSourceHost" : "",
+                        "syncSourceId" : -1,
+                        "infoMessage" : "",
+                        "configVersion" : 3,
+                        "configTerm" : 1,
+                        "self" : true,
+                        "lastHeartbeatMessage" : ""
+                }
+        ],
+        "ok" : 1,
+        "$clusterTime" : {
+                "clusterTime" : Timestamp(1675269838, 1),
+                "signature" : {
+                        "hash" : BinData(0,"AAAAAAAAAAAAAAAAAAAAAAAAAAA="),
+                        "keyId" : NumberLong(0)
+                }
+        },
+        "operationTime" : Timestamp(1675269837, 14)
+}
+```
+
+On voit bien que le noeud primaire n'est plus disponible, comme il ne reste qu'un noeud secondaire, il n'a pas la majorité sur les trois noeud pour passer en primaire.
+3. On va ré-interroger la base de données
+```sh
+>  db.users.find()
+{ "_id" : "Ultron|19", "nickname" : "Ultron", "age" : 13, "posts" : [ { "_id" : "8", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "thread" : { "_id" : "0", "title" : "blah. ", "tags" : [ "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. " ] } }, { "_id" : "9", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "thread" : { "_id" : "1", "title" : "blah. ", "tags" : [ "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. " ] } }, { "_id" : "10", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "thread" : { "_id" : "1", "title" : "blah. ", "tags" : [ "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. " ] } } ], "usedtags" : [ "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. " ] }
+```
+5. On observe que les données sont toujours disponible dans la base, le dernier replica secondaire permet toujours de lire les données grâce à l'option que nous avons rajouté au début.
+
+## Sharding

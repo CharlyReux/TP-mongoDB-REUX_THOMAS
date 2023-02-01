@@ -24,7 +24,6 @@ public class Thread {
   
   private final String title;
 
-  private final List<Post> posts;
-
   private final List<String> tags;
+
 }

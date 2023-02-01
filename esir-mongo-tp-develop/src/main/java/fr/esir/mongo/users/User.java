@@ -22,6 +22,8 @@ public class User {
   private final String nickname;
 
   private final int age;
+  
+  private final List<String> Usedtags;
 
   private final List<Post> posts;
 

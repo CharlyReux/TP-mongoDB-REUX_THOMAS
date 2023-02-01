@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
@@ -78,11 +79,18 @@ public class UserGenerator implements Processor {
     myPosts.removeIf(el -> el == null);
     if (!myPosts.isEmpty()) {
 
+      List<String> myUserTags = new LinkedList<>();
+      // getting the tags
+      for (Post post : myPosts) {
+        myUserTags.addAll(post.getThread().getTags());
+      }
+
       User user = User.builder()
           .age(Math.max(userMinAge, RANDOM.nextInt(userMaxAge)))
           ._id(id)
           .nickname(nickname)
           .posts(myPosts)
+          .Usedtags(myUserTags)
           .build();
 
       User oldUser = knownUsers.putIfAbsent(id, user);

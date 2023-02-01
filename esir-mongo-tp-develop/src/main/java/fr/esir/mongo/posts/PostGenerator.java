@@ -1,6 +1,8 @@
 package fr.esir.mongo.posts;
 
 import fr.esir.mongo.text.TextGenerator;
+import fr.esir.mongo.threads.Thread;
+import fr.esir.mongo.threads.ThreadGenerator;
 import fr.esir.mongo.users.User;
 import fr.esir.mongo.users.UserGenerator;
 import lombok.AllArgsConstructor;
@@ -28,7 +30,7 @@ public class PostGenerator implements Processor {
 
 
   private final TextGenerator textGenerator;
-
+  private final ThreadGenerator threadGenerator;
 
 
   private final ConcurrentHashMap<String, Post> knownPost = new ConcurrentHashMap<>();
@@ -41,12 +43,14 @@ public class PostGenerator implements Processor {
   // TODO manage post/thread/user relationship
   private Post generatePost() {
 
+    Thread currentThread = threadGenerator.getRandomThread();
       // we need a thread in order to add a post into
       String idString = Long.toString(id.getAndIncrement());
       Post newPost = Post.builder()
               ._id(idString)
               .title(textGenerator.generateText(1))
               .content(textGenerator.generateText(10))
+              .thread(currentThread)
               .build();
               knownPost.put(idString, newPost);
 
