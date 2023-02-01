@@ -670,4 +670,8 @@ Nous n'avons pas générer automatiquement de tags, mais on peut en rajouter à 
 { "_id" : "2", "title" : "blah. ", "posts" : [ { "_id" : "6", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. " }, { "_id" : "9", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. " }, { "_id" : "10", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. " } ], "tags" : [ "not found" ] }
 ```
 
-## Modéli
+## Modélisation(3)
+1. Effectuer des statistiques sur l'age moyen
+- La première modélisation auquel nous avons pensé serait de ne plus avoir une liste de posts dans user, mais avoir dans post un user, ce qui permettrait de simplifier la requête à la base de données.
+- La deuxième possibilité serait d'utiliser notre architecture actuelle (avec une liste de post dans user et une liste de post dans thread) et de faire une fonction aggregate complexe.
+2. Nous allons modifier notre architecture
