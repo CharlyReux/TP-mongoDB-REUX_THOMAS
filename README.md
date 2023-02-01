@@ -420,7 +420,7 @@ puis par le nombre d'utilisateurs:
 { "age" : 63, "count" : 1, "nickname" : "Space Ghost" }
 ```
 
-## Modélisation
+## Modélisation(1)
 
 ### 1. Manière de modéliser des relations
 Il existe plusieurs manière de modéliser des relations avec mongodb, soit avec des sous-documents, soit avec des documents liés.
@@ -650,3 +650,24 @@ Ensuite avec explain on trouve les données suivantes
 ```
 
 On observe que l'étape stage n'est pas la même puisque la requête n'a pas eu besoin de scanner l'entrièreté des utilisateurs. En théorie, cette modélisation est plus optimale pour les requêtes.
+
+Pour la suite de ce TP, nous utiliserons cette version pour effectuer nos requêtes.
+
+
+## Modélisation (2)
+
+1. Ajout d'une notion de tag dans les threads.
+        - Pour implémenter ce modèle, nous allons rajouter une liste de string dans la classe thread.
+        - Une autre méthode serait d'utiliser une classe Tag et de mettre une liste de tag dans les thread
+        - On pourrait aussi utiliser un ENUM et lister des tags possible, puis faire une liste de tag dans thread.
+2. Nous avons décider de selectionner la liste de string, qui permet plus de liberté quant au contenu du tag, et qui reste plus facile à implémenter. Pour faire ceci, nous avons rajouté un attribut tags dans la class thread comme ceci:
+```java
+  private final List<String> tags;
+```
+Nous n'avons pas générer automatiquement de tags, mais on peut en rajouter à partir de notre console avec la commande:
+```sh
+>db.threads.update({"_id":"2"},{$push:{"tags":"not found"}})
+{ "_id" : "2", "title" : "blah. ", "posts" : [ { "_id" : "6", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. " }, { "_id" : "9", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. " }, { "_id" : "10", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. " } ], "tags" : [ "not found" ] }
+```
+
+## Modéli
