@@ -26,4 +26,5 @@ public class Thread {
 
   private final List<Post> posts;
 
+  private final List<String> tags;
 }

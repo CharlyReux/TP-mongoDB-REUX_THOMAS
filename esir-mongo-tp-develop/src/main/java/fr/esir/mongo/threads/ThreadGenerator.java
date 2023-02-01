@@ -53,6 +53,7 @@ public class ThreadGenerator implements Processor {
               ._id(idString)
               .title(textGenerator.generateText(1))
               .posts(myPosts)
+              .tags(new ArrayList<String>())
               .build();
 
       knownThreads.put(idString, newThread);
