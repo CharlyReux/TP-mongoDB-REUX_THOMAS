@@ -1170,3 +1170,20 @@ sh.shardCollection("forum.posts", { _id : "hashed"})
 sh.shardCollection("forum.threads", { _id : "hashed" })
 sh.shardCollection("forum.users", { nickname : 1})
 ```
+
+Dans un contexte réel avec la configuration que nous avons mis en place, les users serait mieux distribués sur les shard. Mais dû à la génération, beaucoup de users se retrouve dans le même chunk.
+
+Vis-à-vis des requêtes, elle sont plus optimale pour la requête d'utilisateurs, mais ne le sont pas pour les requêtes pas threads:
+```js
+db.users.find({"nickname":"Deadpool"},{"posts":1}).explain("executionStats")
+```
+
+```json
+"executionStats" : {
+        "nReturned" : 1,
+        "executionTimeMillis" : 0,
+        "totalKeysExamined" : 1,
+        "totalDocsExamined" : 1,
+        "executionStages" : {
+                "stage" : "SINGLE_SHARD",
+```
