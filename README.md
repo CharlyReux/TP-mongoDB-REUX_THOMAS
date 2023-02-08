@@ -974,3 +974,199 @@ On voit bien que le noeud primaire n'est plus disponible, comme il ne reste qu'u
 5. On observe que les données sont toujours disponible dans la base, le dernier replica secondaire permet toujours de lire les données grâce à l'option que nous avons rajouté au début.
 
 ## Sharding
+1. On commence par initialiser le cluster shardé:
+```sh
+> cluster = new ShardingTest({"shards" : 3, "chunkSize" : 1})
+```
+2. On peut ensuite se connecter au cluster shardé avec la commande suivante:
+```sh
+> mongo --host localhost:20006
+```
+
+3. Pour vérifier l'état du cluster, on lance la commande suivante:
+```sh
+> sh.status(true) 
+--- Sharding Status --- 
+  sharding version: {
+        "_id" : 1,
+        "minCompatibleVersion" : 5,
+        "currentVersion" : 6,
+        "clusterId" : ObjectId("63e3a45c9818f73ef8f45af5")
+  }
+  shards:
+        {  "_id" : "__unknown_name__-rs0",  "host" : "__unknown_name__-rs0/342c6c438131:20000",  "state" : 1 }
+        {  "_id" : "__unknown_name__-rs1",  "host" : "__unknown_name__-rs1/342c6c438131:20001",  "state" : 1 }
+        {  "_id" : "__unknown_name__-rs2",  "host" : "__unknown_name__-rs2/342c6c438131:20002",  "state" : 1 }
+  active mongoses:
+        {  "_id" : "342c6c438131:20006",  "advisoryHostFQDNs" : [ ],  "mongoVersion" : "4.4.18",  "ping" : ISODate("2023-02-08T13:33:10.428Z"),  "up" : NumberLong(50),  "waiting" : true }
+  autosplit:
+        Currently enabled: no
+  balancer:
+        Currently enabled:  no
+        Currently running:  no
+        Failed balancer rounds in last 5 attempts:  0
+        Migration Results for the last 24 hours: 
+                No recent migrations
+  databases:
+        {  "_id" : "config",  "primary" : "config",  "partitioned" : true }
+```
+
+        On peut observer que les 3 shards et le mongos sont up, que le balancer n'est pas activé et que la base de données utilisée est pour l'instant la base config.
+
+4. On crée notre base de donnée forum et on active le sharding avec les commandes suivantes:
+```sh
+use forum
+sh.enableSharding("forum")
+```
+
+En revérifiant le status du cluster shardé, on observe l'apparition de la base de données         
+```sh
+{  "_id" : "forum",  "primary" : "__unknown_name__-rs0",  "partitioned" : true,  "version" : {  "uuid" : UUID("b2f172a6-3a3d-43ce-8710-0052fb6da9fc"),  "lastMod" : 1 } }
+```
+
+5. On lance les commandes suivantes pour définir les clés de sharding:
+```sh
+sh.shardCollection("forum.posts", { _id : 1})
+sh.shardCollection("forum.threads", { _id : 1})
+sh.shardCollection("forum.users", { _id : 1})
+```
+
+6. Le balancer est déjà stoppé par défaut.
+7. On va ensuite changer le paramètre de connection dans le programme java pour se connecter à notre base de données:
+```yaml
+mongo.cnx.string=mongodb://172.18.0.2:20006
+```
+On a récupéré l'addresse du conteneur mongo avec la même commande utilisé plus haut pour le réplicaset.
+Et on va maintenant lancer le programme de génération de données(`mvn spring-boot:run`).
+
+Pour vérifier la répartition des données sur les shards, on lance la commande suivante:
+```sh
+db.getCollection('collName').getShardDistribution()
+```
+Pour toute les collection, on observe qu'elles ne sont que sur le shard 1:
+```sh
+Shard __unknown_name__-rs0 at __unknown_name__-rs0/342c6c438131:20000
+ data : 342KiB docs : 1325 chunks : 1
+ estimated data per chunk : 342KiB
+ estimated docs per chunk : 1325
+
+Totals
+ data : 342KiB docs : 1325 chunks : 1
+ Shard __unknown_name__-rs0 contains 100% data, 100% docs in cluster, avg obj size on shard : 264B
+```
+
+### Sharding(2)
+1. Pour activer le balancer, on lance startBalancer()
+```sh
+sh.startBalancer()
+```
+Dans le statut du sharding on observe que le balancer est activé mais il n'est pas lancé:
+```sh
+  balancer:
+        Currently enabled:  yes
+        Currently running:  no
+        Failed balancer rounds in last 5 attempts:  0
+        Migration Results for the last 24 hours: 
+                No recent migrations
+```
+Cela est dû au fait que la fenêtre d'execution n'est pas activée.
+Pour ce faire, on met à jour la base de données:
+```sh
+db.settings.update(
+   { _id: "balancer" },
+   { $set: { activeWindow : { start : "00:00", stop : "24:00" } } },
+   { upsert: true }
+)
+```
+Après avoir générer des données pendant 10mins, on observe qu'elle se répartisse sur les shards, par exemple avec la commande suivante:
+```sh
+>db.getCollection('posts').getShardDistribution()
+
+Shard __unknown_name__-rs0 at __unknown_name__-rs0/342c6c438131:20000
+ data : 2.22MiB docs : 8798 chunks : 2
+ estimated data per chunk : 1.11MiB
+ estimated docs per chunk : 4399
+
+Shard __unknown_name__-rs2 at __unknown_name__-rs2/342c6c438131:20002
+ data : 2KiB docs : 11 chunks : 1
+ estimated data per chunk : 2KiB
+ estimated docs per chunk : 11
+
+Shard __unknown_name__-rs1 at __unknown_name__-rs1/342c6c438131:20001
+ data : 1.29MiB docs : 5079 chunks : 2
+ estimated data per chunk : 660KiB
+ estimated docs per chunk : 2539
+
+Totals
+ data : 3.52MiB docs : 13888 chunks : 5
+ Shard __unknown_name__-rs0 contains 63.27% data, 63.34% docs in cluster, avg obj size on shard : 265B
+ Shard __unknown_name__-rs2 contains 0.07% data, 0.07% docs in cluster, avg obj size on shard : 265B
+ Shard __unknown_name__-rs1 contains 36.64% data, 36.57% docs in cluster, avg obj size on shard : 266B
+```
+On voit bien que les 3 shards sont utilisé et possèdent tous une partie des donnée.
+et avec `sh.status` on peut voir         
+```sh
+Migration Results for the last 24 hours: 
+        4 : Success
+```
+1. Pour effectuer la répartition des données, on peut changer la clé de sharding par une clé hashed lors de la création de la clé de sharding:
+
+```sh
+sh.shardCollection("forum.posts", { _id : "hashed"})
+sh.shardCollection("forum.threads", { _id : "hashed"})
+sh.shardCollection("forum.users", { _id : "hashed"})
+```
+De cette manière, dès la création d'une nouvelle données, elle aura moins de chance qu'elle soit mise dans le même shard que les autres.
+Et on peut voir après avoir généré quelques données que les shards sont bien mieux réparties:
+
+```sh
+> db.getCollection('users').getShardDistribution()
+...
+Totals
+ data : 44KiB docs : 51 chunks : 6
+ Shard __unknown_name__-rs1 contains 37% data, 35.29% docs in cluster, avg obj size on shard : 946B
+ Shard __unknown_name__-rs0 contains 37.48% data, 41.17% docs in cluster, avg obj size on shard : 822B
+ Shard __unknown_name__-rs2 contains 25.51% data, 23.52% docs in cluster, avg obj size on shard : 979B
+```
+
+2. Les requêtes principales ne sont plus optimisées, car les requêtes accèdent à plusieurs shards en même temps.
+
+a. Lors d'une requête des posts par user, par exemple avec cette commande:
+```js
+db.users.find({"nickname":"Deadpool"},{"posts":1}).explain("executionStats")
+```
+on peut voir que la requête à scanné 2317 documents en ayant fusioné les shard
+```json
+"executionStats" : {
+        "nReturned" : 1,
+        "executionTimeMillis" : 2,
+        "totalKeysExamined" : 0,
+        "totalDocsExamined" : 2317,
+        "executionStages" : {
+                "stage" : "SHARD_MERGE",
+```
+
+b. De même pour trouver tous les posts d'un fil de discussion:
+```sh
+db.posts.find({"thread._id":"23"}).explain("executionStats")
+```
+```json
+"executionStats" : {
+        "nReturned" : 116,
+        "executionTimeMillis" : 40,
+        "totalKeysExamined" : 0,
+        "totalDocsExamined" : 90261,
+        "executionStages" : {
+                "stage" : "SHARD_MERGE",
+```
+
+4. Les requêtes ne sont plus optimisées car la clé de sharding est positionnée sur l'id, donc la requête doit fusionner les shard et faire un scan de collection.
+
+### Sharding(3)
+
+1. Pour faire en sorte que les données soient correctement distribuées sur le cluster et que les requêtes précédentes soient optimisées, on peut par exemple positionner la clé de sharding en "hashed" sur le nickname de l'utilisateur.
+```sh
+sh.shardCollection("forum.posts", { _id : "hashed"})
+sh.shardCollection("forum.threads", { _id : "hashed" })
+sh.shardCollection("forum.users", { nickname : 1})
+```
