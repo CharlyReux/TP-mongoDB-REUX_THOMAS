@@ -11,6 +11,10 @@ docker exec -it mongo bash
 mongo admin -u root -p password
 ```
 
+## Introduction
+
+Dans ce TP, nous allons découvrir l'utilisation et les particularités des bases de données mongoDB, d'abord en apprenant les bases, puis en abordant la génération de données ainsi que la modélisation. Enfin, nous nous focaliserons sur l'amélioration de la disponibité ainsi que de la scalabilité horizontale.
+
 ## Pour débuter 1
 ### 3. Insertion utilisateur
 ```sh
@@ -61,6 +65,9 @@ WriteResult({
         }
 })
 ```
+Il est impossible de changer l'id d'une entité car cette variable est immuable. Il faut donc passer outre cette contrainte en créant une nouvelle entité avec les mêmes paramètres mais un id différent.
+
+
 ### 9. Méthode pour mettre à jour l'id de l'utilisateur
 ```sh
 doc = db.collection.findOne({_id: OAbjectId("63cfe4054a461e15c728b3bc")})
@@ -106,7 +113,7 @@ WriteResult({ "nRemoved" : 1 })
 ```sh
 > db.collection.remove({"age":20})
 ```
-5.1. Suppression de tout les document en gardant la base
+5.1. Suppression de tous les documents en gardant la base
 ```sh
 > db.collection.remove({})
 ```
@@ -158,7 +165,7 @@ Les données contenues dans ces collections sont les suivantes:
 { "_id" : "Bushido|08", "nickname" : "Bushido", "age" : 13 }
 ```
 
-Pour avoir plus d'informations sur les collection on peut utiliser les méthodes suivantes:
+Pour avoir plus d'informations sur les collections on peut utiliser les méthodes suivantes:
 ```sh
 > db.getCollectionInfos()
 > db.users.stats()
@@ -202,7 +209,7 @@ On utilise l'opérateur de comparaison $gt pour "existe et est suppérieur" avec
 ```
 
 ## Explain
-### 1. Execution de de la requête explain
+### 1. Execution de la requête explain
 ```sh
 > db.users.find({"age":{"$gt":30}}).sort({"age":1}).explain()
 ```
@@ -249,7 +256,7 @@ On utilise l'opérateur de comparaison $gt pour "existe et est suppérieur" avec
 }
 ```
 
-La méthode explain nous donne (en plus de données générales sur la requête), le nombre d'indexes utilisé.<br> Un index est une structure de données qui stocke une partie des données d'une collection pour améliorer la performance d'accès à ces données.<br>
+La méthode explain nous donne (en plus de données générales sur la requête), le nombre d'indexes utilisés.<br> Un index est une structure de données qui stocke une partie des données d'une collection pour améliorer la performance d'accès à ces données.<br>
 Dans notre requête actuelle, aucun index n'est utilisé.
 ### 3. Création d'un index sur le champ age
 ```sh
@@ -319,11 +326,11 @@ On obtient le résultat suivant:
 ```
 On voit que l'index apparaît `"indexName" : "age_1"`
 
-### 4. Plans de requêtes utilisé par mongoDB
+### 4. Plans de requêtes utilisés par mongoDB
 
 Lors de la première requête l'optimizer de mongodb a utilisé comme "winning plan" un SORT car aucun index n'avait été créé. Lors de la seconde requête, l'optimizer a trouvé qu'un index existait et a donc utilisé un FETCH, ce qui améliore les performances.
 
-### 5. Utilisation d'un indexe "Hashed"
+### 5. Utilisation d'un index "Hashed"
 On récupère et on supprime d'abord l'index existant avec
 ```sh
 > db.users.getIndexes()
@@ -385,13 +392,13 @@ On recommence la requête:
 }
 
 ```
-On peut voir que l'index haché n'a pas été utilisé cette fois ci, l'optimizer à selectionné de refaire un SORT sur les données.
+On peut voir que l'index haché n'a pas été utilisé cette fois-ci, l'optimizer à préféré refaire un SORT sur les données.
 
 #### 7. Intérêt d'un index haché
 L'utilisation d'un index haché est moins intéressant dans ce cadre car la requête qu'on utilise à un .sort(). L'optimizer de mongoDB va donc refuser de prendre cet index haché car il ne donne aucun avantage sur la rapidité de la requête par rapport à un sort classique.
 
 
-## Agrégation
+## Aggrégation
 On utilise $group pour grouper par nickname avec les opérateurs $avg pour la moyenne d'age et $sum pour le nombre d'utilisateurs avec le même nickname. On utilise aussi $first pour récupérer le nickname dans un attribut.<br>
 Ensuite, pour supprimer l'id on utilise $project avec _id:0, et pour finir on utilise $sort pour trier, d'abord par l'age:
 ```sh
@@ -423,14 +430,14 @@ puis par le nombre d'utilisateurs:
 ## Modélisation(1)
 
 ### 1. Manière de modéliser des relations
-Il existe plusieurs manière de modéliser des relations avec mongodb, soit avec des sous-documents, soit avec des documents liés.
+Il existe plusieurs manières de modéliser des relations avec mongodb, soit avec des sous-documents, soit avec des documents liés.
 
 ### 2. Implémentations
 
 #### Embedded document
 - Version 1 
 Ajout d'un attribut user et un attribut thread dans post.<br>
-On ajoute donc un user et un thread dans la classes Post
+On  donc ajoute un user et un thread dans la classe Post
 ```java
   private final User user;
 ```
@@ -449,7 +456,7 @@ Post newPost = Post.builder()
 
 ```
 
-On génère ensuite les données et on trouve bien des user et des thread dans chaque post
+On génère ensuite les données et on trouve bien des users et des threads dans chaque post
 ```sh
 > db.posts.find()
 { "_id" : "0", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "user" : { "_id" : "Elongated Man|71", "nickname" : "Elongated Man", "age" : 14 }, "thread" : { "_id" : "0", "title" : "blah. " } }
@@ -457,7 +464,7 @@ On génère ensuite les données et on trouve bien des user et des thread dans c
 { "_id" : "2", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "user" : { "_id" : "Elongated Man|71", "nickname" : "Elongated Man", "age" : 14 }, "thread" : { "_id" : "0", "title" : "blah. " } }
 ```
 
-On peut trouver tout les posts d'un utilisateur avec la commande
+On peut trouver tous les posts d'un utilisateur avec la commande : 
 ```sh
 > db.posts.find({"user.nickname":"Thor Girl"})
 { "_id" : "492", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "user" : { "_id" : "Thor Girl|08", "nickname" : "Thor Girl", "age" : 26 }, "thread" : { "_id" : "149", "title" : "blah. " } }
@@ -493,7 +500,7 @@ et avec le .explain("executionStats") on récupère les statistiques suivantes:
         },
 ```
 
-On peut trouver tout les posts d'un thread
+On peut trouver tous les posts d'un thread :
 ```sh
 > db.posts.find({"thread._id":"23"})
 { "_id" : "84", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "user" : { "_id" : "Flash III|47", "nickname" : "Flash III", "age" : 34 }, "thread" : { "_id" : "23", "title" : "blah. " } }
@@ -501,7 +508,7 @@ On peut trouver tout les posts d'un thread
 { "_id" : "176", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "user" : { "_id" : "Donna Troy|35", "nickname" : "Donna Troy", "age" : 25 }, "thread" : { "_id" : "23", "title" : "blah. " } }
 { "_id" : "201", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "user" : { "_id" : "Big Barda|75", "nickname" : "Big Barda", "age" : 35 }, "thread" : { "_id" : "23", "title" : "blah. " } }
 ```
-Et on a les statistiques suivantes:
+Et on obtient les statistiques suivantes:
 ```json
 "executionStats" : {
                 "executionSuccess" : true,
@@ -536,7 +543,7 @@ on ajoute une map dans postGenerator
 ```java
   private final ConcurrentHashMap<String, Post> knownPost = new ConcurrentHashMap<>();
   ```
-Dans la méthode generatePost on ajoute les post dans la map
+Dans la méthode generatePost on ajoute les posts dans la map
 ```java
 knownPost.put(idString, newPost);
 ```
@@ -581,7 +588,7 @@ On va ensuite rajouter dans ThreadGenerator et dans UserGenerator les lignes de 
               .posts(myPosts)
               .build();
 ```
-On trouve maintenant dans thread une liste de post
+On trouve maintenant dans thread une liste de posts
 ```sh
 > db.threads.find()
 { "_id" : "0", "title" : "blah. ", "posts" : [ { "_id" : "1", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. " } ] }
@@ -599,7 +606,7 @@ On trouve maintenant dans thread une liste de post
 { "_id" : "Tracy Strauss|20", "nickname" : "Tracy Strauss", "age" : 27, "posts" : [ { "_id" : "908", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. " } ] }
 ```
 
-Pour trouver tout les posts d'un utilisateur on peut faire
+Pour trouver tous les posts d'un utilisateur on peut faire :
 
 ```sh
 db.users.find({"nickname":"Deadpool"},{"posts":1})
@@ -649,7 +656,7 @@ Ensuite avec explain on trouve les données suivantes
         }
 ```
 
-On observe que l'étape stage n'est pas la même puisque la requête n'a pas eu besoin de scanner l'entrièreté des utilisateurs. En théorie, cette modélisation est plus optimale pour les requêtes.
+On observe que l'étape stage n'est pas la même puisque la requête n'a pas eu besoin de scanner l'entièreté des utilisateurs. En théorie, cette modélisation est plus optimale pour les requêtes.
 
 Pour la partie suivante, nous utiliserons cette version pour effectuer nos requêtes.
 
@@ -660,27 +667,27 @@ Pour la partie suivante, nous utiliserons cette version pour effectuer nos requ�
         - Pour implémenter ce modèle, nous allons rajouter une liste de string dans la classe thread.
         - Une autre méthode serait d'utiliser une classe Tag et de mettre une liste de tag dans les thread
         - On pourrait aussi utiliser un ENUM et lister des tags possible, puis faire une liste de tag dans thread.
-2. Nous avons décider de selectionner la liste de string, qui permet plus de liberté quant au contenu du tag, et qui reste plus facile à implémenter. Pour faire ceci, nous avons rajouté un attribut tags dans la class thread comme ceci:
+2. Nous avons décidé de selectionner la liste de string, qui permet plus de liberté quant au contenu du tag, et qui reste plus facile à implémenter. Pour faire ceci, nous avons rajouté un attribut tags dans la class thread comme ceci:
 ```java
   private final List<String> tags;
 ```
-Nous n'avons pas générer automatiquement de tags, mais on peut en rajouter à partir de notre console avec la commande:
+Nous n'avons pas généré automatiquement de tags, mais on peut en rajouter à partir de notre console avec la commande:
 ```sh
 >db.threads.update({"_id":"2"},{$push:{"tags":"not found"}})
 { "_id" : "2", "title" : "blah. ", "posts" : [ { "_id" : "6", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. " }, { "_id" : "9", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. " }, { "_id" : "10", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. " } ], "tags" : [ "not found" ] }
 ```
 
 ## Modélisation(3)
-1. Effectuer des statistiques sur l'age moyen
-- La première modélisation auquel nous avons pensé serait de ne plus avoir une liste de posts dans user, mais avoir dans post un user, ce qui permettrait de simplifier la requête à la base de données.En plus de cela on peut directement rajouter dans threads un double moyenne contenant la moyenne de l'age des utilisateurs.
+1. Effectuer des statistiques sur l'âge moyen
+- La première modélisation à laquelle nous avons pensé serait de ne plus avoir une liste de posts dans user, mais avoir dans post un user, ce qui permettrait de simplifier la requête à la base de données. En plus de cela on peut directement rajouter dans threads un double moyenne contenant la moyenne de l'âge des utilisateurs.
 - La deuxième possibilité serait d'utiliser notre architecture actuelle (avec une liste de post dans user et une liste de post dans thread) et de faire une fonction aggregate complexe.
 2. Nous allons utiliser la première méthode et modifier notre architecture.
 Premièrement, on va ajouter un attribut averageAge dans la classe thread:
 ```java
   private final double averageAge;
 ```
-Ensuite, il faut supprimer la liste contenant les posts dans les user.
-Lors de la génération d'un thread, on va maintenant calculer la moyenne sur les utilisateur des posts prit aléatoirement, sans oublier de ne pas prendre plusieur fois le même user.
+Ensuite, il faut supprimer la liste contenant les posts dans les users.
+Lors de la génération d'un thread, on va maintenant calculer la moyenne sur les utilisateurs des posts pris aléatoirement, sans oublier de ne pas prendre plusieurs fois le même user.
 ```java
     double myAverageAge = 0;
     Set<User> myUserInThread = new HashSet<User>();
@@ -696,7 +703,7 @@ Lors de la génération d'un thread, on va maintenant calculer la moyenne sur le
     myAverageAge /= myUserInThread.size();
 
 ```
-Ici myPost contient la liste des post du thread actuel.
+Ici myPost contient la liste des posts du thread actuel.
 
 Maintenant lorsqu'on requête la base de données on a bien un attribut averageAge qui a été ajouté:
 ```sh
@@ -707,9 +714,9 @@ Maintenant lorsqu'on requête la base de données on a bien un attribut averageA
 ```
 ## Modélisation(4)
 
-1. Effectuer des statistiques sur les tags des threads par utilisateurs.
+1. Effectuer des statistiques sur les tags des threads par utilisateur.
 - Encore une fois on pourrait utiliser l'architecture actuelle, et effectuer une méthode aggregate complexe.
-- Ou on peut changer notre architecture pour répondre au besoins. On peut cette fois-ci remettre dans user une liste de post et dans chaque poste mettre un thread. Ensuite on va rajouter dans user une liste de tags qu'on aura récupéré depuis les posts lors de la génération d'un user.
+- Ou on peut changer notre architecture pour répondre aux besoins. On peut cette fois-ci remettre dans user une liste de posts et dans chaque poste mettre un thread. Ensuite on va rajouter dans user une liste de tags qu'on aura récupéré depuis les posts lors de la génération d'un user.
 2. On va donc implémenter la deuxième modélisation.
 Premièrement, on va rajouter dans User un attribut tagList et un attribut post
 ```java
@@ -718,7 +725,7 @@ private final List<String> Usedtags;
 private final List<Post> posts;
 ```
 
-Ensuite on va générer des tags aléatoire dans les thread:
+Ensuite on va générer des tags aléatoires dans les threads:
 ```java
     for (int i = 0; i < 5; i++) {
       tags.add(textGenerator.generateText(2));
@@ -730,7 +737,7 @@ Et finalement, dans thread on va ajouter un attribut thread
 ```
 Et on va l'initialiser aléatoirement lors de la création d'un post.
 
-Ensuite, lors de la génération des users, on va itérer dans la liste de ses post et accéder au threads correspondant pour trouver la liste des tags correspondant.
+Ensuite, lors de la génération des users, on va itérer dans la liste de ses posts et accéder aux threads correspondant pour trouver la liste des tags correspondant.
 ```java
   List<String> myUserTags = new LinkedList<>();
       // getting the tags
@@ -761,7 +768,7 @@ replicaSet.initiate()
 docker exec -it mongo bash
 ```
 
-On va ensuite se connecter à un réplicaset secondaire:
+On va ensuite se connecter à un replicaSet secondaire:
 ```sh
 mongo --host localhost:20002
 ```
@@ -772,12 +779,12 @@ mongo --host localhost:20002
 ```
 On obtient comme réponse une liste des membres ainsi qu'un attribut "ok" à 1.
 
-4. On va maintenant changer le string de connection dans le application.properties, mais avant cela, il faut toruver l'ip du conteneur mongo:
+4. On va maintenant changer le string de connexion dans le application.properties, mais avant cela, il faut trouver l'ip du conteneur mongo:
 ```sh
 > docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' mongo
 172.19.0.2
 ```
-On peut ensuite rajouter ce qui suit dans le fichier application.properties du java
+On peut ensuite rajouter ce qui suit dans le fichier application.properties du java :
 ```properties
 mongo.cnx.string=mongodb://172.19.0.2:20000
 ```
@@ -791,7 +798,7 @@ mongo.cnx.string=mongodb://172.19.0.2:20000
 ```
 Les données ont bien été ajoutées.
 
-6. On va stopper une des replica avec la commande kill, d'abord on trouve le pid des instance
+6. On va stopper une des replica avec la commande kill. Pour cela, on trouve d'abord le pid des instances :
 ```sh
 >ps -aux
 USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
@@ -805,7 +812,7 @@ Puis on kill l'instance correspondante(sur le port 20001):
 ```sh
 kill 900
 ```
-7. Et on regarde le status:
+7. Et on regarde le statut:
 
 ```sh
 replicaset.status()
@@ -965,13 +972,13 @@ kill 898
 }
 ```
 
-On voit bien que le noeud primaire n'est plus disponible, comme il ne reste qu'un noeud secondaire, il n'a pas la majorité sur les trois noeud pour passer en primaire.
+On voit bien que le noeud primaire n'est plus disponible et comme il ne reste qu'un noeud secondaire, il n'a pas la majorité sur les trois noeuds pour passer en primaire.
 3. On va ré-interroger la base de données
 ```sh
 >  db.users.find()
 { "_id" : "Ultron|19", "nickname" : "Ultron", "age" : 13, "posts" : [ { "_id" : "8", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "thread" : { "_id" : "0", "title" : "blah. ", "tags" : [ "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. " ] } }, { "_id" : "9", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "thread" : { "_id" : "1", "title" : "blah. ", "tags" : [ "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. " ] } }, { "_id" : "10", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "thread" : { "_id" : "1", "title" : "blah. ", "tags" : [ "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. " ] } } ], "usedtags" : [ "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. " ] }
 ```
-5. On observe que les données sont toujours disponible dans la base, le dernier replica secondaire permet toujours de lire les données grâce à l'option que nous avons rajouté au début.
+5. On observe que les données sont toujours disponibles dans la base, le dernier replica secondaire permet toujours de lire les données grâce à l'option que nous avons rajouté au début.
 
 ## Sharding
 1. On commence par initialiser le cluster shardé:
@@ -1013,13 +1020,13 @@ On voit bien que le noeud primaire n'est plus disponible, comme il ne reste qu'u
 
         On peut observer que les 3 shards et le mongos sont up, que le balancer n'est pas activé et que la base de données utilisée est pour l'instant la base config.
 
-4. On crée notre base de donnée forum et on active le sharding avec les commandes suivantes:
+4. On crée notre base de données forum et on active le sharding avec les commandes suivantes:
 ```sh
 use forum
 sh.enableSharding("forum")
 ```
 
-En revérifiant le status du cluster shardé, on observe l'apparition de la base de données         
+En revérifiant le statut du cluster shardé, on observe l'apparition de la base de données:      
 ```sh
 {  "_id" : "forum",  "primary" : "__unknown_name__-rs0",  "partitioned" : true,  "version" : {  "uuid" : UUID("b2f172a6-3a3d-43ce-8710-0052fb6da9fc"),  "lastMod" : 1 } }
 ```
@@ -1043,7 +1050,7 @@ Pour vérifier la répartition des données sur les shards, on lance la commande
 ```sh
 db.getCollection('collName').getShardDistribution()
 ```
-Pour toute les collection, on observe qu'elles ne sont que sur le shard 1:
+Pour toutes les collections, on observe qu'elles ne sont que sur le shard 1:
 ```sh
 Shard __unknown_name__-rs0 at __unknown_name__-rs0/342c6c438131:20000
  data : 342KiB docs : 1325 chunks : 1
@@ -1078,7 +1085,7 @@ db.settings.update(
    { upsert: true }
 )
 ```
-Après avoir générer des données pendant 10mins, on observe qu'elle se répartisse sur les shards, par exemple avec la commande suivante:
+Après avoir généré des données pendant 10 minutes, on observe qu'elles se répartissent sur les shards, par exemple avec la commande suivante:
 ```sh
 >db.getCollection('posts').getShardDistribution()
 
@@ -1135,7 +1142,7 @@ a. Lors d'une requête des posts par user, par exemple avec cette commande:
 ```js
 db.users.find({"nickname":"Deadpool"},{"posts":1}).explain("executionStats")
 ```
-on peut voir que la requête à scanné 2317 documents en ayant fusioné les shard
+on peut voir que la requête à scanné 2317 documents en ayant fusionné les shard
 ```json
 "executionStats" : {
         "nReturned" : 1,
@@ -1160,7 +1167,7 @@ db.posts.find({"thread._id":"23"}).explain("executionStats")
                 "stage" : "SHARD_MERGE",
 ```
 
-4. Les requêtes ne sont plus optimisées car la clé de sharding est positionnée sur l'id, donc la requête doit fusionner les shard et faire un scan de collection.
+4. Les requêtes ne sont plus optimisées car la clé de sharding est positionnée sur l'id, donc la requête doit fusionner les shards et faire un scan de collection.
 
 ### Sharding(3)
 
@@ -1170,10 +1177,11 @@ sh.shardCollection("forum.posts", { _id : "hashed"})
 sh.shardCollection("forum.threads", { _id : "hashed" })
 sh.shardCollection("forum.users", { nickname : 1})
 ```
+Nous n'avons pas eu le temps d'essayer avec une shardKey positionnée sur le thread._id dans la collection posts. Nous pourrions aussi optimiser la requête pour permettre de répartir équitablement.
 
-Dans un contexte réel avec la configuration que nous avons mis en place, les users serait mieux distribués sur les shard. Mais dû à la génération, beaucoup de users se retrouve dans le même chunk.
+Dans un contexte réel avec la configuration que nous avons mis en place, les users seraient mieux distribués sur les shards. Mais dû à la génération, beaucoup de users se retrouvent dans le même chunk.
 
-Vis-à-vis des requêtes, elle sont plus optimale pour la requête d'utilisateurs, mais ne le sont pas pour les requêtes pas threads:
+Vis-à-vis des requêtes, elle sont plus optimales pour la requête d'utilisateurs, mais ne le sont pas pour les requêtes pas threads:
 ```js
 db.users.find({"nickname":"Deadpool"},{"posts":1}).explain("executionStats")
 ```
@@ -1187,3 +1195,7 @@ db.users.find({"nickname":"Deadpool"},{"posts":1}).explain("executionStats")
         "executionStages" : {
                 "stage" : "SINGLE_SHARD",
 ```
+
+## Conclusion
+
+Dans ce tp, nous avons pu aborder les aspects pratiques de mongoDB en passant par de la génération de données, du requêtage, des créations de différents modèles avec leurs avantages et inconvénients, puis nous avons manié des outils puissants de mongoDB comme les replica sets et le sharding, permettant d'accroître la scalabilité horizontale et la haute disponibilité.
