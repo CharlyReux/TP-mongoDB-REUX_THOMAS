@@ -53,3 +53,5 @@ nbdist/
 
 document-loader.iml
 .idea/*
+
+db/
