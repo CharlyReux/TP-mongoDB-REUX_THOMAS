@@ -102,7 +102,7 @@ WriteResult({
         }
 })
 ```
-Impossible car l'id est unique
+Cette opération est mpossible car l'id est unique.
 ### 4. Supprimer un utilisateur grâce à son identifiant
 ```sh
 > db.collection.remove({_id: ObjectId("000123454a461e15c728b3bc")})
@@ -436,8 +436,9 @@ Il existe plusieurs manières de modéliser des relations avec mongodb, soit ave
 
 #### Embedded document
 - Version 1 
+
 Ajout d'un attribut user et un attribut thread dans post.<br>
-On  donc ajoute un user et un thread dans la classe Post
+On va donc ajouter un user et un thread dans la classe Post
 ```java
   private final User user;
 ```
@@ -538,6 +539,7 @@ Et on obtient les statistiques suivantes:
         }
 ```
 - Version 2
+
 On ajoute un tableau de post dans user et un tableau de post dans thread.
 on ajoute une map dans postGenerator
 ```java
@@ -664,9 +666,9 @@ Pour la partie suivante, nous utiliserons cette version pour effectuer nos requ�
 ## Modélisation (2)
 
 1. Ajout d'une notion de tag dans les threads.
-        - Pour implémenter ce modèle, nous allons rajouter une liste de string dans la classe thread.
-        - Une autre méthode serait d'utiliser une classe Tag et de mettre une liste de tag dans les thread
-        - On pourrait aussi utiliser un ENUM et lister des tags possible, puis faire une liste de tag dans thread.
+- Pour implémenter ce modèle, nous allons rajouter une liste de string dans la classe thread.
+- Une autre méthode serait d'utiliser une classe Tag et de mettre une liste de tag dans les thread
+- On pourrait aussi utiliser un ENUM et lister des tags possible, puis faire une liste de tag dans thread.
 2. Nous avons décidé de selectionner la liste de string, qui permet plus de liberté quant au contenu du tag, et qui reste plus facile à implémenter. Pour faire ceci, nous avons rajouté un attribut tags dans la class thread comme ceci:
 ```java
   private final List<String> tags;
@@ -832,7 +834,7 @@ dans le noeud avec l'id 2, on observe les lignes suivantes:
 { "_id" : "Ultron|19", "nickname" : "Ultron", "age" : 13, "posts" : [ { "_id" : "8", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "thread" : { "_id" : "0", "title" : "blah. ", "tags" : [ "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. " ] } }, { "_id" : "9", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "thread" : { "_id" : "1", "title" : "blah. ", "tags" : [ "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. " ] } }, { "_id" : "10", "title" : "blah. ", "content" : "blah. blah. blah. blah. blah. blah. blah. blah. blah. blah. ", "thread" : { "_id" : "1", "title" : "blah. ", "tags" : [ "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. " ] } } ], "usedtags" : [ "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. ", "blah. blah. " ] }
 ```
 
-La base est toujours fonctionnelle.
+Même si un noeud secondaire est arreté, la base est toujours fonctionnelle.
 
 ## Réplication et haute disponibilité(2)
 
